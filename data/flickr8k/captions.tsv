@@ -1,0 +1,7 @@
+# Sample captions file - replace with your actual Flickr8k data
+# Format: image_path<TAB>caption
+Images/123456.jpg	Two dogs playing in the park
+Images/234567.jpg	A close-up photo of a pink flower
+Images/345678.jpg	A beautiful sunset over the ocean
+Images/456789.jpg	A person riding a bicycle
+Images/567890.jpg	A cat sitting on a windowsill

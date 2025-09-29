@@ -1,0 +1,29 @@
+exp_name: flickr8k_vitb32_baseline
+seed: 42
+device: cuda
+output_dir: runs/flickr8k_vitb32_baseline
+model:
+  name: ViT-B-32
+  pretrained: openai
+data:
+  flickr8k:
+    root: data/flickr8k
+    tsv: captions.tsv        # image_path \t caption; relative to root
+  batch_size: 64
+  num_workers: 4
+  topical_batches: true      # turn on to stress false-negatives
+  topical_key: noun          # noun/topic grouping
+optim:
+  lr: 5.0e-5
+  weight_decay: 0.2
+  epochs: 8
+  grad_clip: 1.0
+loss:
+  name: clip_ce              # vanilla
+  temperature_learnable: true
+eval:
+  retrieval_every_epochs: 1
+  zs_cifar10: true
+  val_subset: 1000           # eval on 1k pairs for speed
+log:
+  interval: 50
