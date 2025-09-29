@@ -27,7 +27,8 @@ class TopicalBatchSampler(Sampler):
 
         # bucket indices by topic
         buckets = defaultdict(list)
-        for i, (_, cap, _) in enumerate(self.ds.split_pairs):
+        for i in range(len(self.ds)):
+            _, cap, _ = self.ds[i]
             topic = extract_topic_from_caption(cap, mode=key)
             buckets[topic].append(i)
 

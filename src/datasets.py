@@ -56,4 +56,7 @@ def collate_text_tokenize(batch, tokenizer):
     images, texts, ids = zip(*batch)
     images = torch.stack(images, dim=0)
     tokenized = tokenizer(list(texts))
+    # Ensure tokenized is a tensor (not dict) for OpenCLIP
+    if isinstance(tokenized, dict):
+        tokenized = tokenized["input_ids"]
     return images, tokenized, ids

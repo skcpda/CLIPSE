@@ -1,22 +1,51 @@
-exp_name: flickr8k_vitb32_bandpass
-seed: 42
-device: cuda
-output_dir: runs/flickr8k_vitb32_bandpass
-model: { name: ViT-B-32, pretrained: openai }
+exp_name: flickr8k_sanw_bandpass
+seed: 13
+device: auto
+output_dir: runs/flickr8k_sanw_bandpass
+model:
+  name: ViT-B-32
+  pretrained: openai
 data:
-  flickr8k: { root: data/flickr8k, tsv: captions.tsv }
-  batch_size: 64
-  num_workers: 4
-  topical_batches: true
-  topical_key: noun
-optim: { lr: 5.0e-5, weight_decay: 0.2, epochs: 8, grad_clip: 1.0 }
+  use_dummy: true
+  flickr8k:
+    root: data/flickr8k
+    tsv: captions.tsv
+  batch_size: 32  # reduced for CPU testing
+  num_workers: 0  # disable multiprocessing for testing
+  topical_batching:
+    enabled: true
+    p_topical: 0.6
+    k_clusters: 80
+    refresh_every_epochs: 2
+    sampler_temperature: 0.7
+optim:
+  name: adamw
+  lr: 0.0005
+  betas: [0.9, 0.98]
+  eps: 0.000001
+  weight_decay: 0.2
+  grad_clip: 1.0
+scheduler:
+  name: cosine
+  warmup_epochs: 1
+epochs: 3  # reduced for testing
 loss:
-  name: sanw
-  mode: bandpass
+  name: sanw_bandpass
   alpha: 0.5
   m1: 0.3
   m2: 0.8
   gamma: 0.05
-  temperature_learnable: true
-eval: { retrieval_every_epochs: 1, zs_cifar10: true, val_subset: 1000 }
-log: { interval: 50 }
+  floor: 1e-3
+  stopgrad_weights: true
+logit_scale:
+  init: 2.659
+  clamp_max: 4.605170
+precision: amp
+eval:
+  metrics: [R@1, R@5, R@10]
+  directions: [i2t, t2i]
+  every_epochs: 1
+save:
+  metric: mean_R1
+log:
+  interval: 50

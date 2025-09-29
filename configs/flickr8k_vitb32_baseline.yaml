@@ -1,29 +1,45 @@
-exp_name: flickr8k_vitb32_baseline
-seed: 42
-device: cuda
-output_dir: runs/flickr8k_vitb32_baseline
+exp_name: flickr8k_baseline
+seed: 13
+device: auto
+output_dir: runs/flickr8k_baseline
 model:
   name: ViT-B-32
   pretrained: openai
 data:
+  use_dummy: true            # use dummy data for testing
   flickr8k:
     root: data/flickr8k
-    tsv: captions.tsv        # image_path \t caption; relative to root
-  batch_size: 64
-  num_workers: 4
-  topical_batches: true      # turn on to stress false-negatives
-  topical_key: noun          # noun/topic grouping
+    tsv: captions.tsv
+  batch_size: 32  # reduced for CPU testing
+  num_workers: 0  # disable multiprocessing for testing
+  topical_batching:
+    enabled: true
+    p_topical: 0.5
+    k_clusters: 80
+    refresh_every_epochs: 2
+    sampler_temperature: 0.7
 optim:
-  lr: 5.0e-5
+  name: adamw
+  lr: 0.0005
+  betas: [0.9, 0.98]
+  eps: 0.000001
   weight_decay: 0.2
-  epochs: 8
   grad_clip: 1.0
+scheduler:
+  name: cosine
+  warmup_epochs: 1
+epochs: 3  # reduced for testing
 loss:
-  name: clip_ce              # vanilla
-  temperature_learnable: true
+  name: clip_ce
+logit_scale:
+  init: 2.659  # ln(1/0.07)
+  clamp_max: 4.605170  # ln(100)
+precision: amp
 eval:
-  retrieval_every_epochs: 1
-  zs_cifar10: true
-  val_subset: 1000           # eval on 1k pairs for speed
+  metrics: [R@1, R@5, R@10]
+  directions: [i2t, t2i]
+  every_epochs: 1
+save:
+  metric: mean_R1
 log:
   interval: 50

@@ -1,4 +1,4 @@
-import os, yaml, math, random
+import os, yaml, math, random, csv
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, RandomSampler, BatchSampler
@@ -6,12 +6,18 @@ import open_clip
 from tqdm import tqdm
 
 from .datasets import FlickrTSV, collate_text_tokenize
+from .dummy_dataset import DummyFlickrDataset
 from .topical_sampler import TopicalBatchSampler
 from .losses import clip_ce_loss, sanw_clip_loss
 from .eval_utils import evaluate_retrieval, evaluate_zero_shot_cifar10
 
 def set_seed(s):
-    random.seed(s); np.random.seed(s); torch.manual_seed(s); torch.cuda.manual_seed_all(s)
+    random.seed(s)
+    np.random.seed(s)
+    torch.manual_seed(s)
+    torch.cuda.manual_seed_all(s)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 def main():
     import argparse
@@ -21,7 +27,17 @@ def main():
 
     cfg = yaml.safe_load(open(args.config))
     set_seed(cfg.get("seed", 42))
-    device = cfg.get("device", "cuda" if torch.cuda.is_available() else "cpu")
+    
+    # Handle device selection
+    device_config = cfg.get("device", "auto")
+    if device_config == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    else:
+        device = device_config
+    
+    print(f"Using device: {device}")
+    if device == "cpu":
+        print("Note: Training on CPU will be slower. Consider using CUDA if available.")
 
     os.makedirs(cfg["output_dir"], exist_ok=True)
 
@@ -34,10 +50,18 @@ def main():
     model = model.to(device)
     model.train()
 
-    # data
-    ds_cfg = cfg["data"]["flickr8k"]
-    train_ds = FlickrTSV(ds_cfg["root"], ds_cfg["tsv"], split="train", val_ratio=0.1, transform=preprocess)
-    val_ds   = FlickrTSV(ds_cfg["root"], ds_cfg["tsv"], split="val",   val_ratio=0.1, transform=preprocess)
+    # data - use dummy dataset for testing
+    use_dummy = cfg["data"].get("use_dummy", True)
+    if use_dummy:
+        train_ds = DummyFlickrDataset(num_samples=200, split="train", val_ratio=0.1, transform=preprocess)
+        val_ds = DummyFlickrDataset(num_samples=200, split="val", val_ratio=0.1, transform=preprocess)
+    else:
+        ds_cfg = cfg["data"]["flickr8k"]
+        train_ds = FlickrTSV(ds_cfg["root"], ds_cfg["tsv"], split="train", val_ratio=0.1, transform=preprocess)
+        val_ds   = FlickrTSV(ds_cfg["root"], ds_cfg["tsv"], split="val",   val_ratio=0.1, transform=preprocess)
+    
+    # caption shuffle stress test
+    caption_shuffle_prob = cfg["data"].get("caption_shuffle_prob", 0.0)
 
     topical = cfg["data"].get("topical_batches", True)
     if topical:
@@ -56,7 +80,7 @@ def main():
     optim_cfg = cfg["optim"]
     params = list(model.parameters())
     opt = torch.optim.AdamW(params, lr=optim_cfg["lr"], weight_decay=optim_cfg["weight_decay"])
-    scaler = torch.cuda.amp.GradScaler() if device.startswith("cuda") else None
+    scaler = torch.cuda.amp.GradScaler() if device == "cuda" else None
     grad_clip = optim_cfg.get("grad_clip", 1.0)
 
     # loss mode
@@ -76,7 +100,14 @@ def main():
         pbar = tqdm(enumerate(train_loader), total=len(train_loader), desc=f"Epoch {epoch}/{epochs}")
         for it, (images, tokens, ids) in pbar:
             images = images.to(device, non_blocking=True)
-            tokens = {k: v.to(device) for k, v in tokens.items()}
+            tokens = tokens.to(device)
+            
+            # Caption shuffle stress test
+            if caption_shuffle_prob > 0 and random.random() < caption_shuffle_prob:
+                # Shuffle captions within batch to inject false negatives
+                batch_size = tokens.size(0)
+                shuffle_indices = torch.randperm(batch_size, device=tokens.device)
+                tokens = tokens[shuffle_indices]
 
             with torch.cuda.amp.autocast(enabled=scaler is not None):
                 img_feat, txt_feat, _ = model.encode_image(images), model.encode_text(tokens), None
@@ -130,7 +161,20 @@ def main():
                 if cfg["eval"].get("zs_cifar10", True):
                     top1 = evaluate_zero_shot_cifar10(model, device)
                     print(f"[Zero-shot CIFAR10] top1={top1:.2f}")
+                else:
+                    top1 = 0.0
             model.train()
+            
+            # CSV logging
+            log_path = os.path.join(cfg["output_dir"], "metrics.csv")
+            header = ["epoch", "r1", "r5", "r10", "zs_cifar10", "temp"]
+            row = [epoch, r1, r5, r10, top1, float(model.logit_scale.exp().item())]
+            write_header = not os.path.exists(log_path)
+            with open(log_path, "a", newline="") as f:
+                w = csv.writer(f)
+                if write_header:
+                    w.writerow(header)
+                w.writerow(row)
 
         # save epoch checkpoint
         ckpt = {
