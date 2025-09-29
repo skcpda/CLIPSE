@@ -2,21 +2,22 @@ exp_name: flickr8k_baseline
 seed: 13
 device: auto
 output_dir: runs/flickr8k_baseline
+epochs: 20
 model:
   name: ViT-B-32
   pretrained: openai
 data:
-  use_dummy: true            # use dummy data for testing
+  use_dummy: false            # use dummy data for testing
   flickr8k:
     root: data/flickr8k
     tsv: captions.tsv
-  batch_size: 32  # reduced for CPU testing
-  num_workers: 0  # disable multiprocessing for testing
+  batch_size: 32
+  num_workers: 0
   topical_batching:
     enabled: true
-    p_topical: 0.5
+    p_topical: 0.6
     k_clusters: 80
-    refresh_every_epochs: 2
+    refresh_every_epochs: 20
     sampler_temperature: 0.7
 optim:
   name: adamw
@@ -28,7 +29,6 @@ optim:
 scheduler:
   name: cosine
   warmup_epochs: 1
-epochs: 3  # reduced for testing
 loss:
   name: clip_ce
 logit_scale:

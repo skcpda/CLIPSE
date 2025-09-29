@@ -249,7 +249,7 @@ def main():
                 
                 # CSV logging
                 log_path = os.path.join(cfg["output_dir"], "metrics.csv")
-                header = ["epoch", "r1_i2t", "r5_i2t", "r10_i2t", "r1_t2i", "r5_t2i", "r10_t2i", "mean_r1", "zs_cifar10", "temp", "lr", "loss"]
+                header = ["epoch", "r1_i2t", "r5_i2t", "r10_i2t", "r1_t2i", "r5_t2i", "r10_t2i", "mean_r1", "zs_cifar10", "logit_scale", "exp_logit_scale", "lr", "loss", "w_mean", "w_low_pct", "w_high_pct", "w_sim_corr", "unweighted_margin", "weighted_margin"]
                 row = [
                     epoch,
                     retrieval_results['i2t']['r1'],
@@ -260,9 +260,16 @@ def main():
                     retrieval_results['t2i']['r10'],
                     retrieval_results['mean_r1'],
                     zs_cifar10,
-                    model.logit_scale.exp().item(),
+                    model.logit_scale.item(),  # Raw logit scale
+                    model.logit_scale.exp().item(),  # exp(logit_scale)
                     opt.param_groups[0]['lr'],
-                    running_loss / len(train_loader)
+                    running_loss / max(len(train_loader), 1),
+                    getattr(loss, 'w_mean', 0.0),  # Weight statistics
+                    getattr(loss, 'w_low_pct', 0.0),
+                    getattr(loss, 'w_high_pct', 0.0),
+                    getattr(loss, 'w_sim_corr', 0.0),  # Weight-similarity correlation
+                    getattr(loss, 'unweighted_margin', 0.0),  # Margin tracking
+                    getattr(loss, 'weighted_margin', 0.0)
                 ]
                 write_header = not os.path.exists(log_path)
                 with open(log_path, "a", newline="") as f:

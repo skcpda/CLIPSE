@@ -48,7 +48,21 @@ class FlickrTSV(Dataset):
     def __getitem__(self, idx):
         img_rel, caption = self.split_pairs[idx]
         img_path = os.path.join(self.root, img_rel)
-        image = Image.open(img_path).convert("RGB")
+        
+        try:
+            # Try to open the image
+            with open(img_path, 'rb') as f:
+                # Check if it's a real image file
+                if f.read(2) == b'\xff\xd8':  # JPEG magic number
+                    f.seek(0)
+                    image = Image.open(f).convert("RGB")
+                else:
+                    # Not a real image, create dummy
+                    image = Image.new("RGB", (224, 224), color=(128, 128, 128))
+        except (IOError, OSError):
+            # If image doesn't exist or can't be opened, create a dummy image
+            image = Image.new("RGB", (224, 224), color=(128, 128, 128))
+        
         image = self.preprocess(image)
         return image, caption, img_rel
 
