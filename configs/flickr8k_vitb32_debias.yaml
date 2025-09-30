@@ -1,18 +1,17 @@
 exp_name: flickr8k_sanw_debias
 seed: 13
-device: auto
+device: cuda
 output_dir: runs/flickr8k_sanw_debias
 epochs: 20
 model:
   name: ViT-B-32
   pretrained: openai
 data:
-  use_dummy: false
   flickr8k:
     root: data/flickr8k
     tsv: captions.tsv
-  batch_size: 32
-  num_workers: 0
+  batch_size: 128
+  num_workers: 4
   topical_batching:
     enabled: true
     p_topical: 0.6

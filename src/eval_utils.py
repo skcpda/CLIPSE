@@ -36,6 +36,7 @@ def evaluate_retrieval(model, tokenizer, val_ds, device, subset=None):
     def recall_at_i2t(k):
         hits = 0
         for i in range(ranks_i2t.shape[0]):
+            # For image i, check if its corresponding text (at position i) is in top-k
             if i in ranks_i2t[i, :k]:
                 hits += 1
         return 100.0 * hits / ranks_i2t.shape[0]
@@ -46,6 +47,7 @@ def evaluate_retrieval(model, tokenizer, val_ds, device, subset=None):
     def recall_at_t2i(k):
         hits = 0
         for j in range(ranks_t2i.shape[1]):
+            # For text j, check if its corresponding image (at position j) is in top-k
             if j in ranks_t2i[:k, j]:
                 hits += 1
         return 100.0 * hits / ranks_t2i.shape[1]

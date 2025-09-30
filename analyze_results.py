@@ -53,26 +53,27 @@ def load_csv_results(pattern):
     results = []
     for f in glob.glob(pattern):
         try:
-            df = pd.read_csv(f)
+            # Try to read CSV with error handling for inconsistent columns
+            df = pd.read_csv(f, on_bad_lines='skip')
+            
             # Get final epoch results
             final_row = df.iloc[-1]
-            results.append({
-                'file': f,
-                'r1_i2t': final_row['r1_i2t'],
-                'r5_i2t': final_row['r5_i2t'],
-                'r10_i2t': final_row['r10_i2t'],
-                'r1_t2i': final_row['r1_t2i'],
-                'r5_t2i': final_row['r5_t2i'],
-                'r10_t2i': final_row['r10_t2i'],
-                'mean_r1': final_row['mean_r1'],
-                'zs_cifar10': final_row['zs_cifar10'],
-                'w_mean': final_row.get('w_mean', 0.0),
-                'w_low_pct': final_row.get('w_low_pct', 0.0),
-                'w_high_pct': final_row.get('w_high_pct', 0.0),
-                'w_sim_corr': final_row.get('w_sim_corr', 0.0),
-                'unweighted_margin': final_row.get('unweighted_margin', 0.0),
-                'weighted_margin': final_row.get('weighted_margin', 0.0)
-            })
+            
+            # Handle different CSV formats by checking available columns
+            result = {'file': f}
+            
+            # Standard columns that should exist
+            for col in ['r1_i2t', 'r5_i2t', 'r10_i2t', 'r1_t2i', 'r5_t2i', 'r10_t2i', 'mean_r1', 'zs_cifar10']:
+                if col in final_row:
+                    result[col] = final_row[col]
+                else:
+                    result[col] = 0.0
+            
+            # Optional columns for SANW experiments
+            for col in ['w_mean', 'w_low_pct', 'w_high_pct', 'w_sim_corr', 'unweighted_margin', 'weighted_margin']:
+                result[col] = final_row.get(col, 0.0)
+            
+            results.append(result)
         except Exception as e:
             print(f"Warning: Could not load {f}: {e}")
     return results
@@ -131,10 +132,20 @@ def main():
     """Main analysis function."""
     print("🔍 Analyzing SANW Results...")
     
-    # Load results from CSV files
-    baseline_results = load_csv_results("runs/flickr8k_baseline/metrics.csv")
-    debias_results = load_csv_results("runs/flickr8k_sanw_debias/metrics.csv")
-    bandpass_results = load_csv_results("runs/flickr8k_sanw_bandpass/metrics.csv")
+    # Load results from CSV files - try multiple patterns
+    baseline_results = []
+    debias_results = []
+    bandpass_results = []
+    
+    # Try different naming patterns
+    for pattern in ["runs/flickr8k_baseline/metrics.csv", "runs/flickr8k_vitb32_baseline/metrics.csv"]:
+        baseline_results.extend(load_csv_results(pattern))
+    
+    for pattern in ["runs/flickr8k_sanw_debias/metrics.csv", "runs/flickr8k_vitb32_debias/metrics.csv"]:
+        debias_results.extend(load_csv_results(pattern))
+    
+    for pattern in ["runs/flickr8k_sanw_bandpass/metrics.csv", "runs/flickr8k_vitb32_bandpass/metrics.csv"]:
+        bandpass_results.extend(load_csv_results(pattern))
     
     print(f"📊 Loaded results:")
     print(f"  Baseline: {len(baseline_results)} runs")

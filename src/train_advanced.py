@@ -8,7 +8,6 @@ from tqdm import tqdm
 import time
 
 from .datasets import FlickrTSV, collate_text_tokenize
-from .dummy_dataset import DummyFlickrDataset
 from .topical_batch_sampler import TopicalBatchSampler
 from .losses import clip_ce_loss, sanw_debias_loss, sanw_bandpass_loss
 from .eval_utils import evaluate_retrieval, evaluate_zero_shot_cifar10
@@ -70,15 +69,10 @@ def main():
         model.logit_scale.data.fill_(init_scale)
     model.logit_scale.requires_grad_(True)
 
-    # Data
-    use_dummy = cfg["data"].get("use_dummy", False)
-    if use_dummy:
-        train_ds = DummyFlickrDataset(num_samples=200, split="train", val_ratio=0.1, transform=preprocess)
-        val_ds = DummyFlickrDataset(num_samples=200, split="val", val_ratio=0.1, transform=preprocess)
-    else:
-        ds_cfg = cfg["data"]["flickr8k"]
-        train_ds = FlickrTSV(ds_cfg["root"], ds_cfg["tsv"], split="train", val_ratio=0.1, transform=preprocess)
-        val_ds = FlickrTSV(ds_cfg["root"], ds_cfg["tsv"], split="val", val_ratio=0.1, transform=preprocess)
+    # Data - use Flickr8k dataset
+    ds_cfg = cfg["data"]["flickr8k"]
+    train_ds = FlickrTSV(ds_cfg["root"], ds_cfg["tsv"], split="train", val_ratio=0.1, transform=preprocess)
+    val_ds = FlickrTSV(ds_cfg["root"], ds_cfg["tsv"], split="val", val_ratio=0.1, transform=preprocess)
 
     # Topical batching
     topical_cfg = cfg["data"].get("topical_batching", {})
@@ -249,7 +243,7 @@ def main():
                 
                 # CSV logging
                 log_path = os.path.join(cfg["output_dir"], "metrics.csv")
-                header = ["epoch", "r1_i2t", "r5_i2t", "r10_i2t", "r1_t2i", "r5_t2i", "r10_t2i", "mean_r1", "zs_cifar10", "logit_scale", "exp_logit_scale", "lr", "loss", "w_mean", "w_low_pct", "w_high_pct", "w_sim_corr", "unweighted_margin", "weighted_margin"]
+                header = ["epoch", "r1_i2t", "r5_i2t", "r10_i2t", "r1_t2i", "r5_t2i", "r10_t2i", "mean_r1", "zs_cifar10", "logit_scale", "exp_logit_scale", "lr", "loss"]
                 row = [
                     epoch,
                     retrieval_results['i2t']['r1'],
@@ -263,13 +257,7 @@ def main():
                     model.logit_scale.item(),  # Raw logit scale
                     model.logit_scale.exp().item(),  # exp(logit_scale)
                     opt.param_groups[0]['lr'],
-                    running_loss / max(len(train_loader), 1),
-                    getattr(loss, 'w_mean', 0.0),  # Weight statistics
-                    getattr(loss, 'w_low_pct', 0.0),
-                    getattr(loss, 'w_high_pct', 0.0),
-                    getattr(loss, 'w_sim_corr', 0.0),  # Weight-similarity correlation
-                    getattr(loss, 'unweighted_margin', 0.0),  # Margin tracking
-                    getattr(loss, 'weighted_margin', 0.0)
+                    running_loss / max(len(train_loader), 1)
                 ]
                 write_header = not os.path.exists(log_path)
                 with open(log_path, "a", newline="") as f:
