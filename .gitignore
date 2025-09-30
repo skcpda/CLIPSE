@@ -19,37 +19,101 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
-.venv/
+.env
+.venv
+env/
 venv/
 ENV/
-env/
+env.bak/
+venv.bak/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# Project specific
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Data directories (large datasets)
+data/
 runs/
-data/cifar10/
+results/
+logs/
+outputs/
+
+# Model checkpoints and weights
 *.pt
 *.pth
 *.ckpt
+*.h5
+*.pkl
+*.pickle
 
-# Logs
+# Experiment outputs
+metrics.csv
+results_summary.txt
+results_table.tex
+*.out
+*.err
 *.log
-logs/
-
-# Jupyter
-.ipynb_checkpoints/
 
 # Temporary files
 *.tmp
 *.temp
+*.bak
+*.backup
+
+# Archive files
+*.tar.gz
+*.tgz
+*.zip
+*.rar
+
+# Cluster/remote files
+sanw_experiments/
+*.tar.gz
+*.tgz
+
+# PyTorch
+*.pth
+*.pt
+
+# CUDA
+*.cubin
+*.fatbin
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Profiling
+.prof
+
+# Large files that shouldn't be in git
+*.bin
+*.safetensors
