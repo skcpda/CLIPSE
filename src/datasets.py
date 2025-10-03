@@ -36,7 +36,7 @@ class FlickrTSV(Dataset):
         self.split_pairs = self.train if split == "train" else self.val
 
         self.preprocess = transform or transforms.Compose([
-            transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
+            transforms.Resize(256, interpolation=3),  # 3 = BICUBIC for older torchvision
             transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize(mean=(0.48145466, 0.4578275, 0.40821073),
@@ -68,7 +68,27 @@ class FlickrTSV(Dataset):
 
 def collate_text_tokenize(batch, tokenizer):
     images, texts, ids = zip(*batch)
-    images = torch.stack(images, dim=0)
+    
+    # Handle both tensor and BatchFeature inputs
+    if isinstance(images[0], torch.Tensor):
+        images = torch.stack(images, dim=0)
+    else:
+        # Handle BatchFeature objects from transformers CLIP processor
+        from transformers import BatchFeature
+        if isinstance(images[0], BatchFeature):
+            # Extract pixel_values from BatchFeature and convert to tensors
+            pixel_values = []
+            for img in images:
+                if isinstance(img.pixel_values, torch.Tensor):
+                    pixel_values.append(img.pixel_values)
+                else:
+                    # Convert list to tensor if needed
+                    pixel_values.append(torch.tensor(img.pixel_values))
+            images = torch.stack(pixel_values, dim=0)
+        else:
+            # Fallback: try to convert to tensor
+            images = torch.stack(images, dim=0)
+    
     tokenized = tokenizer(list(texts))
     # Ensure tokenized is a tensor (not dict) for OpenCLIP
     if isinstance(tokenized, dict):

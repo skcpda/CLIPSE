@@ -36,11 +36,16 @@ def run_experiment(config_path, seed):
     ]
     
     try:
-        result = subprocess.run(cmd, check=True, capture_output=False)
+        # Pass environment variables to subprocess
+        env = os.environ.copy()
+        env['PYTHONPATH'] = f"{env.get('PYTHONPATH', '')}:{os.getcwd()}"
+        result = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         print(f"✅ Experiment completed successfully")
         return True
     except subprocess.CalledProcessError as e:
         print(f"❌ Experiment failed with exit code {e.returncode}")
+        if e.stderr:
+            print(f"Error: {e.stderr.decode()}")
         return False
 
 def main():

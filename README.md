@@ -2,11 +2,34 @@
 
 This project implements and evaluates Similarity-Aware Negative Weighting for CLIP training, addressing the false negative problem in contrastive learning.
 
+## Repository Structure
+
+```
+├── src/                    # Core implementation
+│   ├── train_advanced.py   # Main training script
+│   ├── datasets.py         # Flickr8K dataset with topical batching
+│   ├── losses.py          # SANW loss functions
+│   ├── eval_utils.py      # Evaluation utilities
+│   └── topical_batch_sampler.py  # K-means clustering for topical batches
+├── configs/                # Experiment configurations
+│   ├── flickr8k_vitb32_baseline.yaml
+│   ├── flickr8k_vitb32_debias.yaml
+│   └── flickr8k_vitb32_bandpass.yaml
+├── scripts/                # Cluster execution scripts
+│   ├── submit_cluster_job.sh  # Main job submission
+│   └── transfer_all.sh        # File transfer to cluster
+├── docs/                   # Documentation and utilities
+│   └── visualize_weights.py
+├── data/                   # Dataset (excluded from git)
+├── runs/                   # Experiment outputs (excluded from git)
+└── requirements.txt        # Python dependencies
+```
+
 ## Quick Start
 
 1. **Setup environment:**
    ```bash
-   make setup
+   pip install -r requirements.txt
    ```
 
 2. **Prepare data:**
@@ -16,10 +39,7 @@ This project implements and evaluates Similarity-Aware Negative Weighting for CL
 
 3. **Run experiments:**
    ```bash
-   make run-baseline    # Vanilla CLIP (20 epochs, batch 256)
-   make run-debias      # SANW debias mode 
-   make run-bandpass    # SANW bandpass mode
-   make run-all-seeds   # Run all experiments with seeds {13, 17, 23}
+   python run_all_experiments.py  # Run all experiments with seeds {13, 17, 23}
    ```
 
 ## Method

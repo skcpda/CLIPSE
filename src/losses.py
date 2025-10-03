@@ -63,7 +63,11 @@ def sanw_debias_loss(img, txt, logit_scale, alpha=0.5, delta=0.6, lam=4.0,
         s_off_diag = s_mix - torch.diag(torch.diag(s_mix))
         w_flat = w_off_diag.flatten()
         s_flat = s_off_diag.flatten()
-        w_sim_corr = torch.corrcoef(torch.stack([w_flat, s_flat]))[0, 1].item()
+        # Manual correlation calculation (torch.corrcoef not available in PyTorch 1.7.1)
+        w_centered = w_flat - w_flat.mean()
+        s_centered = s_flat - s_flat.mean()
+        w_sim_corr = (w_centered * s_centered).sum() / (torch.sqrt((w_centered ** 2).sum() * (s_centered ** 2).sum()) + 1e-8)
+        w_sim_corr = w_sim_corr.item()
         
         # Margin tracking
         unweighted_margin = torch.diag(logits) - torch.logsumexp(logits - torch.diag(torch.diag(logits)), dim=1)
@@ -125,7 +129,11 @@ def sanw_bandpass_loss(img, txt, logit_scale, alpha=0.5, m1=0.3, m2=0.8,
         s_off_diag = s_mix - torch.diag(torch.diag(s_mix))
         w_flat = w_off_diag.flatten()
         s_flat = s_off_diag.flatten()
-        w_sim_corr = torch.corrcoef(torch.stack([w_flat, s_flat]))[0, 1].item()
+        # Manual correlation calculation (torch.corrcoef not available in PyTorch 1.7.1)
+        w_centered = w_flat - w_flat.mean()
+        s_centered = s_flat - s_flat.mean()
+        w_sim_corr = (w_centered * s_centered).sum() / (torch.sqrt((w_centered ** 2).sum() * (s_centered ** 2).sum()) + 1e-8)
+        w_sim_corr = w_sim_corr.item()
         
         # Margin tracking
         unweighted_margin = torch.diag(logits) - torch.logsumexp(logits - torch.diag(torch.diag(logits)), dim=1)
