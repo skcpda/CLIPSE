@@ -5,7 +5,13 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 # Use transformers CLIP as primary implementation (more compatible with Python 3.6)
 try:
-    from transformers import CLIPModel, CLIPProcessor, CLIPConfig, CLIPFeatureExtractor
+    from transformers import CLIPModel, CLIPProcessor, CLIPConfig
+    try:
+        from transformers import CLIPImageProcessor
+        CLIP_IMAGE_PROCESSOR_AVAILABLE = True
+    except ImportError:
+        CLIP_IMAGE_PROCESSOR_AVAILABLE = False
+        from transformers import CLIPFeatureExtractor
     TRANSFORMERS_CLIP_AVAILABLE = True
     OPEN_CLIP_AVAILABLE = False
     print("✅ Using transformers CLIP implementation")
@@ -60,9 +66,33 @@ def main():
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
+    # Cluster-SOP friendly runtime overrides
+    ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--device", type=str, default=None, help="cpu|cuda|auto")
+    ap.add_argument("--local_model_dir", type=str, default=None, help="Absolute path to local HF CLIP directory")
+    ap.add_argument("--num_workers", type=int, default=None)
+    ap.add_argument("--topical_k", type=int, default=None)
+    ap.add_argument("--adaptive_k", type=str, default=None, help="true|false")
+    ap.add_argument("--epochs", type=int, default=None)
     args = ap.parse_args()
 
     cfg = yaml.safe_load(open(args.config))
+
+    # Apply runtime overrides into cfg
+    if args.seed is not None:
+        cfg["seed"] = args.seed
+    if args.device is not None:
+        cfg["device"] = args.device
+    if args.epochs is not None:
+        cfg["epochs"] = args.epochs
+    if args.num_workers is not None:
+        cfg.setdefault("data", {}).update({"num_workers": args.num_workers})
+    if args.topical_k is not None:
+        cfg.setdefault("data", {}).setdefault("topical_batching", {}).update({"k_clusters": args.topical_k})
+    if args.adaptive_k is not None:
+        adaptive_flag = args.adaptive_k.strip().lower() in {"1", "true", "yes", "y"}
+        cfg.setdefault("data", {}).setdefault("topical_batching", {}).update({"adaptive_k": adaptive_flag})
+
     set_seed(cfg.get("seed", 42))
     
     # Handle device selection
@@ -73,6 +103,13 @@ def main():
         device = device_config
     
     print(f"Using device: {device}")
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    if device == "cuda" and torch.cuda.is_available():
+        try:
+            torch.cuda.set_device(0)
+            print(f"CUDA device: {torch.cuda.get_device_name(0)}")
+        except Exception:
+            pass
     if device == "cpu":
         print("Note: Training on CPU will be slower. Consider using CUDA if available.")
 
@@ -86,20 +123,28 @@ def main():
         # Use transformers CLIP as primary implementation
         print("Using transformers CLIP implementation")
         try:
-            # Try to load from local cache first (should work if pre-downloaded)
-            cache_dir = os.path.expanduser("~/.cache/huggingface/transformers/models--openai--clip-vit-base-patch32/snapshots/")
-            # Find the actual snapshot directory
-            snapshot_dirs = [d for d in os.listdir(cache_dir) if os.path.isdir(os.path.join(cache_dir, d)) and d != 'latest']
-            if snapshot_dirs:
-                model_path = os.path.join(cache_dir, snapshot_dirs[0])
-                print(f"Using model from: {model_path}")
-                model = CLIPModel.from_pretrained(model_path, local_files_only=True)
-                processor = CLIPProcessor.from_pretrained(model_path, local_files_only=True)
-                print("✅ Successfully loaded pretrained CLIP model from cache")
-                preprocess = processor.image_processor
-                tokenizer = processor.tokenizer
+            # Prefer an explicit local directory (env or CLI)
+            local_dir = args.local_model_dir or os.environ.get("CLIP_LOCAL_DIR") or \ 
+                        cfg.get("model", {}).get("local_dir", None)
+            if local_dir and os.path.exists(os.path.join(local_dir, "config.json")):
+                print(f"Loading CLIP from local directory: {local_dir}")
+                model = CLIPModel.from_pretrained(local_dir, local_files_only=True)
+                processor = CLIPProcessor.from_pretrained(local_dir, local_files_only=True)
             else:
-                raise FileNotFoundError("No snapshot directory found")
+                # Fallback to user cache snapshot structure
+                cache_dir = os.path.expanduser("~/.cache/huggingface/transformers/models--openai--clip-vit-base-patch32/snapshots/")
+                snapshot_dirs = [d for d in os.listdir(cache_dir) if os.path.isdir(os.path.join(cache_dir, d)) and d != 'latest']
+                if snapshot_dirs:
+                    model_path = os.path.join(cache_dir, snapshot_dirs[0])
+                    print(f"Using model from cache: {model_path}")
+                    model = CLIPModel.from_pretrained(model_path, local_files_only=True)
+                    processor = CLIPProcessor.from_pretrained(model_path, local_files_only=True)
+                else:
+                    raise FileNotFoundError("No local CLIP files found (set CLIP_LOCAL_DIR)")
+
+            print("✅ Successfully loaded pretrained CLIP")
+            preprocess = processor.image_processor
+            tokenizer = processor.tokenizer
         except Exception as e:
             print(f"⚠️  Failed to load from cache: {e}")
             print("🔧 Creating CLIP model from scratch with proper configuration...")
@@ -129,8 +174,19 @@ def main():
             model = CLIPModel(config)
             
             # Create processors manually
-            preprocess = CLIPFeatureExtractor(
-                size=224,
+            if CLIP_IMAGE_PROCESSOR_AVAILABLE:
+                preprocess = CLIPImageProcessor(
+                    size=224,
+                    crop_size=224,
+                    do_resize=True,
+                    do_center_crop=True,
+                    do_normalize=True,
+                    image_mean=[0.48145466, 0.4578275, 0.40821073],
+                    image_std=[0.26862954, 0.26130258, 0.27577711]
+                )
+            else:
+                preprocess = CLIPFeatureExtractor(
+                    size=224,
                 do_resize=True,
                 do_center_crop=True,
                 do_normalize=True,
@@ -269,10 +325,23 @@ def main():
     # Topical batching
     topical_cfg = cfg["data"].get("topical_batching", {})
     if topical_cfg.get("enabled", False):
+        # Adaptive k: reduce to available distinct captions if requested
+        requested_k = topical_cfg.get("k_clusters", 80)
+        adaptive_k = topical_cfg.get("adaptive_k", False)
+        effective_k = requested_k
+        if adaptive_k:
+            # Count distinct captions in train split
+            try:
+                distinct = len({cap for (_, cap) in train_ds.train})
+                effective_k = max(8, min(requested_k, distinct))
+                if effective_k != requested_k:
+                    print(f"[Topical] Reducing k from {requested_k} to {effective_k} (distinct={distinct})")
+            except Exception:
+                pass
         batch_sampler = TopicalBatchSampler(
             train_ds, 
             batch_size=cfg["data"]["batch_size"],
-            k_clusters=topical_cfg.get("k_clusters", 80),
+            k_clusters=effective_k,
             p_topical=topical_cfg.get("p_topical", 0.5),
             refresh_every_epochs=topical_cfg.get("refresh_every_epochs", 2),
             sampler_temperature=topical_cfg.get("sampler_temperature", 0.7),
@@ -281,7 +350,7 @@ def main():
         train_loader = DataLoader(
             train_ds, 
             batch_sampler=batch_sampler,
-            num_workers=0,  # Disable multiprocessing to avoid permission errors on cluster
+            num_workers=cfg.get("data", {}).get("num_workers", 0),
             collate_fn=lambda b: collate_text_tokenize(b, tokenizer)
         )
     else:
@@ -289,7 +358,7 @@ def main():
             train_ds, 
             batch_size=cfg["data"]["batch_size"], 
             shuffle=True,
-            num_workers=0,  # Disable multiprocessing to avoid permission errors on cluster
+            num_workers=cfg.get("data", {}).get("num_workers", 0),
             collate_fn=lambda b: collate_text_tokenize(b, tokenizer)
         )
 

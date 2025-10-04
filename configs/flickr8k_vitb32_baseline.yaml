@@ -1,8 +1,8 @@
 exp_name: flickr8k_baseline
-seed: 13
-device: cuda
+seed: 23
+device: cpu
 output_dir: runs/flickr8k_baseline
-epochs: 20
+epochs: 5
 model:
   name: ViT-B-32
   pretrained: openai
@@ -10,8 +10,8 @@ data:
   flickr8k:
     root: data/flickr8k
     tsv: captions.tsv
-  batch_size: 128
-  num_workers: 4
+  batch_size: 16
+  num_workers: 0
   topical_batching:
     enabled: true
     p_topical: 0.6
@@ -41,4 +41,4 @@ eval:
 save:
   metric: mean_R1
 log:
-  interval: 50
+  interval: 10

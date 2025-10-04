@@ -69,28 +69,37 @@ class FlickrTSV(Dataset):
 def collate_text_tokenize(batch, tokenizer):
     images, texts, ids = zip(*batch)
     
-    # Handle both tensor and BatchFeature inputs
+    # Fast path: images already tensors
     if isinstance(images[0], torch.Tensor):
         images = torch.stack(images, dim=0)
     else:
-        # Handle BatchFeature objects from transformers CLIP processor
-        from transformers import BatchFeature
-        if isinstance(images[0], BatchFeature):
-            # Extract pixel_values from BatchFeature and convert to tensors
-            pixel_values = []
-            for img in images:
-                if isinstance(img.pixel_values, torch.Tensor):
-                    pixel_values.append(img.pixel_values)
+        # Try to extract pixel_values efficiently
+        try:
+            from transformers import BatchFeature
+            if isinstance(images[0], BatchFeature):
+                # Prefer PyTorch tensors directly to avoid slow list->tensor conversion
+                first = images[0].pixel_values
+                if isinstance(first, torch.Tensor):
+                    images = torch.stack([img.pixel_values for img in images], dim=0)
                 else:
-                    # Convert list to tensor if needed
-                    pixel_values.append(torch.tensor(img.pixel_values))
-            images = torch.stack(pixel_values, dim=0)
-        else:
-            # Fallback: try to convert to tensor
+                    import numpy as np
+                    np_stack = np.stack([img.pixel_values for img in images], axis=0)
+                    images = torch.from_numpy(np_stack)
+            else:
+                images = torch.stack(images, dim=0)
+        except Exception:
             images = torch.stack(images, dim=0)
     
-    tokenized = tokenizer(list(texts))
-    # Ensure tokenized is a tensor (not dict) for OpenCLIP
-    if isinstance(tokenized, dict):
-        tokenized = tokenized["input_ids"]
+    # Ask tokenizer to return tensors if it supports it
+    try:
+        tokenized = tokenizer(list(texts), return_tensors="pt", padding=True, truncation=True)
+        if isinstance(tokenized, dict):
+            tokenized = tokenized.get("input_ids", tokenized)
+            if isinstance(tokenized, dict):
+                # last resort – convert dict values that are tensors
+                tokenized = next((v for v in tokenized.values() if isinstance(v, torch.Tensor)), tokenized)
+    except Exception:
+        tokenized = tokenizer(list(texts))
+        if isinstance(tokenized, dict):
+            tokenized = tokenized.get("input_ids", tokenized)
     return images, tokenized, ids
