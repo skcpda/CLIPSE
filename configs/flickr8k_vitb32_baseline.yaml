@@ -1,44 +1,21 @@
-exp_name: flickr8k_baseline
-seed: 23
-device: cpu
-output_dir: runs/flickr8k_baseline
-epochs: 5
-model:
-  name: ViT-B-32
-  pretrained: openai
-data:
-  flickr8k:
-    root: data/flickr8k
-    tsv: captions.tsv
-  batch_size: 16
-  num_workers: 0
-  topical_batching:
-    enabled: true
-    p_topical: 0.6
-    k_clusters: 80
-    refresh_every_epochs: 20
-    sampler_temperature: 0.7
-optim:
-  name: adamw
-  lr: 0.0005
-  betas: [0.9, 0.98]
-  eps: 0.000001
-  weight_decay: 0.2
-  grad_clip: 1.0
-scheduler:
-  name: cosine
-  warmup_epochs: 1
+# Baseline CLIP training configuration
+seed: 13
+model_dir: ${MODEL_DIR}
+batch_size: 256
+num_workers: 4
+epochs: 20
+lr: 5.0e-4
+wd: 0.2
+amp: true
+log_every: 20
+experiment_name: "baseline"
+
 loss:
-  name: clip_ce
-logit_scale:
-  init: 2.659  # ln(1/0.07)
-  clamp_max: 4.605170  # ln(100)
-precision: amp
-eval:
-  metrics: [R@1, R@5, R@10]
-  directions: [i2t, t2i]
-  every_epochs: 1
-save:
-  metric: mean_R1
-log:
-  interval: 10
+  name: baseline
+
+dataset:
+  name: flickr8k
+  root: ${DATASET_ROOT}
+  topical:
+    enabled: true
+    k: 80

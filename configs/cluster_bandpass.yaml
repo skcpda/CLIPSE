@@ -1,8 +1,8 @@
-# SANW-Bandpass CLIP training configuration
+# Cluster-specific SANW-Bandpass configuration
 seed: 13
-model_dir: ${MODEL_DIR}
-batch_size: 256
-num_workers: 4
+model_dir: openai/clip-vit-base-patch32
+batch_size: 128
+num_workers: 0  # Set to 0 for cluster compatibility
 epochs: 20
 lr: 5.0e-4
 wd: 0.2
@@ -19,7 +19,7 @@ loss:
 
 dataset:
   name: flickr8k
-  root: ${DATASET_ROOT}
+  root: /nfs_home/users/poonam/clipse/data/flickr8k
   topical:
     enabled: true
     k: 80

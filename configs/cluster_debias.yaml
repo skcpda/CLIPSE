@@ -1,0 +1,27 @@
+# Cluster-specific SANW-Debias configuration
+seed: 13
+model_dir: openai/clip-vit-base-patch32
+batch_size: 128
+num_workers: 0  # Set to 0 for cluster compatibility
+epochs: 20
+lr: 5.0e-4
+wd: 0.2
+amp: true
+log_every: 20
+experiment_name: "debias"
+
+# keep troubleshooting flags off for debias
+# diagnostics: false
+# freeze_logit_scale_epochs: 0
+loss:
+  name: sanw_debias
+  alpha: 0.5
+  delta: 0.6
+  lam: 4.0
+
+dataset:
+  name: flickr8k
+  root: /nfs_home/users/poonam/clipse/data/flickr8k
+  topical:
+    enabled: true
+    k: 80

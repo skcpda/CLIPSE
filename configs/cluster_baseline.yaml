@@ -1,0 +1,26 @@
+# Cluster-specific baseline configuration
+seed: 13
+model_dir: openai/clip-vit-base-patch32
+batch_size: 128
+num_workers: 0  # Set to 0 for cluster compatibility
+epochs: 20
+lr: 5.0e-4
+wd: 0.01
+amp: true
+log_every: 20
+experiment_name: "baseline"
+
+diagnostics: true
+freeze_logit_scale_epochs: 0  # Don't freeze for gradient diagnostics
+epochs: 5  # Test run with gradient diagnostics
+batch_size: 32  # Smaller batch for memory
+
+loss:
+  name: baseline
+
+dataset:
+  name: flickr8k
+  root: /nfs_home/users/poonam/clipse/data/flickr8k
+  topical:
+    enabled: true
+    k: 80
