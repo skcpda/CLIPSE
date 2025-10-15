@@ -1,0 +1,24 @@
+# SANW-Debias CLIP training configuration
+seed: 13
+model_dir: ${MODEL_DIR}
+batch_size: 256
+num_workers: 4
+epochs: 20
+lr: 5.0e-4
+wd: 0.2
+amp: true
+log_every: 20
+experiment_name: "debias"
+
+loss:
+  name: sanw_debias
+  alpha: 0.5
+  delta: 0.6
+  lam: 4.0
+
+dataset:
+  name: flickr8k
+  root: ${DATASET_ROOT}
+  topical:
+    enabled: true
+    k: 80
