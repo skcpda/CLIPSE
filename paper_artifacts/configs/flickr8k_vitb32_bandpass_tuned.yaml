@@ -1,0 +1,24 @@
+# Tuned SANW-Bandpass configuration for Flickr8k (ViT-B-32)
+seed: 13
+model_name: ViT-B-32
+pretrained_tag: laion2b_s34b_b79k
+batch_size: 16
+num_workers: 4
+epochs: 5
+lr: 5.0e-6
+wd: 0.001
+grad_clip: 0.5
+amp: true
+log_every: 20
+freeze_logit_scale_epochs: 2
+
+loss:
+  name: sanw_bandpass
+  alpha: 0.5
+  m1: 0.2
+  m2: 0.9
+  gamma: 0.1
+  sanw_beta: 0.5
+  sanw_beta_warmup_epochs: 3
+
+

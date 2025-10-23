@@ -1,0 +1,35 @@
+# SANW-Bandpass CLIP training configuration - OPTIMIZED VERSION
+# Based on comprehensive analysis of performance issues
+
+seed: 13
+model_dir: ${MODEL_DIR}
+batch_size: 256
+num_workers: 4
+epochs: 20
+lr: 5.0e-4
+wd: 0.2
+amp: true
+log_every: 20
+experiment_name: "bandpass_optimized"
+
+loss:
+  name: sanw_bandpass
+  alpha: 0.5
+  m1: 0.2          # Expanded lower frequency bound (was 0.3)
+  m2: 0.9          # Expanded upper frequency bound (was 0.8)
+  gamma: 0.1       # Increased bandpass strength (was 0.05)
+  sanw_beta: 0.5   # Increased from default 0.2
+
+dataset:
+  name: flickr8k
+  root: ${DATASET_ROOT}
+  topical:
+    enabled: true
+    k: 80
+
+# Additional optimization parameters
+optimization:
+  adaptive_bands: true
+  weight_diversity_loss: 0.01
+  frequency_curriculum: true
+  target_coverage: 0.25

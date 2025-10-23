@@ -1,0 +1,37 @@
+experiment: flickr8k_finetune
+description: Hyperparameters for baseline, SANW-Debias, SANW-Bandpass on ViT-B/32 backbones (laion2b_s34b_b79k and laion400m_e32)
+backbones:
+  - name: laion2b_s34b_b79k
+    model_name: ViT-B-32
+    pretrained_tag: laion2b_s34b_b79k
+    local_checkpoint_path: /nfs_home/users/poonam/clipse/models/laion2b_s34b_b79k/open_clip_pytorch_model.bin
+  - name: laion400m_e32
+    model_name: ViT-B-32
+    pretrained_tag: laion400m_e32
+    local_checkpoint_path: /nfs_home/users/poonam/clipse/models/laion400m_e32/open_clip_pytorch_model.bin
+dataset:
+  name: flickr8k
+  path: /nfs_home/users/poonam/clipse/data/flickr8k
+training:
+  epochs: 10
+  batch_size: 32
+  lr: 1.0e-5
+  weight_decay: 0.01
+  warmup_epochs: 1
+  grad_clip: 1.0
+  seeds: [13, 17, 23]
+methods:
+  baseline:
+    loss_fn: baseline
+  sanw_debias:
+    loss_fn: sanw_debias
+    sanw_alpha: 0.1
+    sanw_delta: 0.2
+    sanw_lambda: 0.5
+  sanw_bandpass:
+    loss_fn: sanw_bandpass
+    sanw_alpha: 0.1
+    sanw_m1: 0.1
+    sanw_m2: 0.9
+    sanw_gamma: 0.5
+

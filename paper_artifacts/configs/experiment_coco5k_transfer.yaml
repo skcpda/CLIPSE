@@ -1,0 +1,28 @@
+experiment: coco5k_transfer
+description: COCO5k transfer evaluation for Flickr30k fine-tuned models (baseline, SANW-Debias, SANW-Bandpass) with ViT-B/32 laion2b backbone
+backbone:
+  name: laion2b_s34b_b79k
+  model_name: ViT-B-32
+  pretrained_tag: laion2b_s34b_b79k
+dataset:
+  name: coco5k
+  index_jsonl: /nfs_home/users/poonam/clipse/results/eval/coco5k_index_test.jsonl
+  split: test
+device: cuda
+checkpoints:
+  baseline:
+    source_dataset: flickr30k
+    path: /nfs_home/users/poonam/clipse/checkpoints/f30k/checkpoint_epoch_10.pt
+  sanw_debias:
+    source_dataset: flickr30k
+    path: /nfs_home/users/poonam/clipse/checkpoints/sanw_debias_laion2b_s34b_b79k_13_883/checkpoint_epoch_10.pt
+  sanw_bandpass:
+    source_dataset: flickr30k
+    path: /nfs_home/users/poonam/clipse/checkpoints/sanw_bandpass_laion2b_s34b_b79k_13_885/checkpoint_epoch_10.pt
+evaluation:
+  script: /nfs_home/users/poonam/clipse/tools/eval_flickr8k_retrieval.py
+  outputs:
+    baseline: /nfs_home/users/poonam/clipse/results/eval/transfer_f30k_laion2b_coco5k_test.json
+    sanw_debias: /nfs_home/users/poonam/clipse/results/eval/transfer_f30k_sanw_debias_laion2b_coco5k_test.json
+    sanw_bandpass: /nfs_home/users/poonam/clipse/results/eval/transfer_f30k_sanw_bandpass_laion2b_coco5k_test.json
+
