@@ -1,0 +1,23 @@
+# Tuned SANW-Debias configuration for Flickr8k (ViT-B-32)
+seed: 13
+model_name: ViT-B-32
+pretrained_tag: laion2b_s34b_b79k
+batch_size: 16
+num_workers: 4
+epochs: 5
+lr: 5.0e-6
+wd: 0.001
+grad_clip: 0.5
+amp: true
+log_every: 20
+freeze_logit_scale_epochs: 2
+
+loss:
+  name: sanw_debias
+  alpha: 0.5
+  delta: 0.6
+  lam: 4.0
+  sanw_beta: 1.0
+  sanw_beta_warmup_epochs: 3
+
+

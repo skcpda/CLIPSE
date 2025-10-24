@@ -1,0 +1,4 @@
+dataset,mean_similarity,std_similarity,min_similarity,max_similarity,percentile_50,percentile_75,percentile_90,percentile_95,fraction_ge_0_2,fraction_ge_0_3,fraction_ge_0_4,total_pairs,num_batches
+coco,0.3690,0.1017,-0.005,0.9999,0.3638,0.4307,0.4961,0.5404,0.9643,0.7498,0.3557,3264000,50
+flickr8k,0.3788,0.1147,-0.057,1.0,0.3728,0.4514,0.5275,0.5767,0.9514,0.7478,0.4057,3264000,50
+flickr30k,0.3570,0.1077,-0.097,0.9653,0.3550,0.4287,0.4956,0.5364,0.9309,0.6952,0.3399,3264000,50

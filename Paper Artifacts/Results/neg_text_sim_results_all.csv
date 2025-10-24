@@ -1,0 +1,4 @@
+dataset,mean_similarity,fraction_ge_0_2,fraction_ge_0_3,fraction_ge_0_4
+coco,0.3690,0.9643,0.7498,0.3557
+flickr8k,0.3788,0.9514,0.7478,0.4057
+flickr30k,0.3570,0.9309,0.6952,0.3399
